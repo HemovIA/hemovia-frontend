@@ -1,3 +1,37 @@
+# Aplicação web Hemovia
+
+Implementação em React, TypeScript e Vite. As telas, os contratos e os limites de integração estão descritos em [spec.md](spec.md).
+
+## Executar localmente
+
+Requer Node.js 22 e npm.
+
+```sh
+npm ci
+npm run dev
+```
+
+Acesse a URL exibida pelo Vite. O backend é esperado em `http://localhost:8080`, com o prefixo `/api/v1`. O proxy de desenvolvimento preserva os caminhos dos cookies da API. O arquivo `.env.example` documenta a variável de base da API.
+
+Use uma conta previamente criada no backend ou escolha um perfil demonstrativo na tela de entrada. No modo demonstrativo, crie uma requisição como Hospital, alterne para Hemocentro para alocar e iniciar o transporte, e retorne ao Hospital para confirmar a entrega. A troca de perfil fica no cabeçalho. Os registros demonstrativos permanecem neste navegador.
+
+```sh
+npm run build
+npm run preview
+```
+
+O preview serve o build. A integração em preview e produção requer encaminhar `/api` ao backend na mesma origem ou configurar uma origem de API compatível com o CORS e os cookies da aplicação. Configure o servidor de produção para encaminhar as rotas de navegação a `index.html`.
+
+## Cobertura atual
+
+Login por e-mail ou CPF, restauração e renovação de sessão, resumo operacional, cadastro e consulta de bolsas e doações, requisições, alocação, cancelamento, início e recebimento de transporte, prévia de rota, estatísticas, cadastros administrativos e rede logística. A interface inclui tema escuro, navegação responsiva e confirmação de ações críticas.
+
+O acompanhamento real de requisições e transportes usa os comprovantes obtidos durante a sessão. A API atual ainda precisa de consultas históricas para esses recursos. Hospitais oferecem criação, com seus comprovantes apresentados após o cadastro. Os formulários aceitam os UUIDs necessários para operar recursos recebidos por outros canais.
+
+A estilização desta implementação usa CSS e variáveis de tema. A especificação visual original é preservada abaixo como referência de produto.
+
+---
+
 # 🩸 HEMOVIA — Especificação do Frontend
 
 > **Projeto:** HEMOVIA
