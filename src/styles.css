@@ -1396,3 +1396,8 @@ input:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+.search-select { position: relative; }
+.search-select ul { list-style: none; padding: 0; margin: .25rem 0; border: 1px solid #d5dbe2; border-radius: .5rem; max-height: 14rem; overflow: auto; background: white; }
+.search-select li button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: .65rem; cursor: pointer; }
+.search-select li button:hover, .search-select li button:focus-visible { background: #f4e8eb; }
+.search-select input:focus-visible, .search-select button:focus-visible { outline: 3px solid #a72741; outline-offset: 2px; }

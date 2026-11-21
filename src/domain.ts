@@ -143,3 +143,19 @@ export const uuidPattern =
   "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
 export const numeric = (n?: number | null) =>
   n == null ? "—" : n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+export type Donor = { id: string; name: string; cpf: string; email?: string | null; phoneNumber?: string | null };
+export type BloodCenter = { id: string; name: string; city: string };
+export type Hospital = { id: string; name: string; city: string };
+export type Page<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number };
+export function validCpf(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  for (let length = 9; length <= 10; length++) {
+    let sum = 0;
+    for (let i = 0; i < length; i++) sum += Number(digits[i]) * (length + 1 - i);
+    const remainder = sum % 11;
+    if (Number(digits[length]) !== (remainder < 2 ? 0 : 11 - remainder)) return false;
+  }
+  return true;
+}
