@@ -51,6 +51,7 @@ import {
   Table,
   Title,
   useAction,
+  useCatalog,
   useQuery,
   useSession,
   values,
@@ -433,6 +434,7 @@ export function OrderDetail() {
   const [confirm, setConfirm] = useState<
     "allocate" | "cancel" | "complete" | null
   >(null);
+  const [vehicleId, setVehicleId] = useState("");
   const [allocationId, setAllocationId] = useState("");
   const [transportId, setTransportId] = useState("");
   const action = useAction();
@@ -632,20 +634,7 @@ export function OrderDetail() {
                 />
               </label>
             )}
-            <label>
-              Veículo
-              <select name="vehicleId" required defaultValue="">
-                <option value="" disabled>
-                  Selecionar veículo
-                </option>
-                {vehicles.data?.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.code} · {vehicle.capacity} bolsas
-                  </option>
-                ))}
-              </select>
-            </label>
-            {!vehicles.data && <QueryState query={vehicles} />}
+            <SearchSelect label="Veículo" name="vehicleId" required value={vehicleId} onChange={setVehicleId} options={(vehicles.data || []).map((vehicle) => ({ id: vehicle.id, label: `${vehicle.code} · ${vehicle.capacity} bolsas` }))} loading={!vehicles.data && !vehicles.error} error={vehicles.error} retry={vehicles.reload} />
             <Failure error={action.error} />
             <button
               className="primary"
@@ -994,6 +983,8 @@ export function RouteView({ route }: { route: RouteInfo }) {
 
 export function RoutePlanner() {
   const { call } = useSession();
+  const hospitals = useCatalog<{ id: string; name: string; city: string }>("/hospitals");
+  const [hospitalId, setHospitalId] = useState("");
   const [route, setRoute] = useState<RouteInfo>();
   const action = useAction();
   return (
@@ -1022,15 +1013,7 @@ export function RoutePlanner() {
             );
           }}
         >
-          <label>
-            Identificador do hospital de destino
-            <input
-              name="hospitalId"
-              pattern={uuidPattern}
-              required
-              placeholder="UUID do hospital"
-            />
-          </label>
+          <SearchSelect label="Hospital de destino" name="hospitalId" required value={hospitalId} onChange={setHospitalId} options={(hospitals.data || []).map((item) => ({id:item.id, label:`${item.name} · ${item.city}`}))} loading={!hospitals.data && !hospitals.error} error={hospitals.error} retry={hospitals.reload} />
           <label>
             Hemocomponente
             <select name="component">

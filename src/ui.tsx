@@ -346,3 +346,29 @@ export function SearchSelect({ label, name, options, value, onChange, required =
   </div>;
 }
 
+
+export function useCatalog<T>(path: string | null) {
+  const { call, revision } = useSession();
+  const [retry, setRetry] = useState(0);
+  const [state, setState] = useState<{ data?: T[]; error?: unknown }>({});
+  useEffect(() => {
+    let active = true;
+    setState({});
+    if (!path) return () => { active = false; };
+    async function load() {
+      try {
+        const all: T[] = [];
+        for (let page = 0; ; page++) {
+          const result = await call<T[] | { content: T[]; totalPages: number }>(`${path}?page=${page}&size=100`);
+          if (Array.isArray(result)) { all.push(...result); break; }
+          all.push(...result.content);
+          if (page + 1 >= result.totalPages) break;
+        }
+        if (active) setState({ data: all });
+      } catch (error) { if (active) setState({ error }); }
+    }
+    void load();
+    return () => { active = false; };
+  }, [path, call, revision, retry]);
+  return { ...state, reload: () => setRetry((n) => n + 1) };
+}

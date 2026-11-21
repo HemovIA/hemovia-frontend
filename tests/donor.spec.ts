@@ -22,3 +22,19 @@ test('@spec:AC-096 @spec:AC-097 cadastro preserva formulário e vincula doador',
 });
 
 
+test('@spec:AC-101 seleção de vínculo limpa ao trocar perfil', async ({page}) => {
+  await page.goto('http://127.0.0.1:5179/');
+  await page.getByRole('button', {name:'Administrador', exact:true}).click();
+  await page.getByRole('link', {name:'Cadastros', exact:true}).click();
+  await page.getByRole('link', {name:/Usuários/}).click();
+  await page.getByRole('button', {name:'Novo cadastro'}).click();
+  await page.getByLabel('Vínculo').fill('Restauração');
+  await page.getByRole('button', {name:/Hospital da Restauração/}).click();
+  await expect(page.locator('input[name=hospitalId]')).not.toHaveValue('');
+  await page.locator('select[name=role]').selectOption('HEMOCENTRO');
+  await expect(page.locator('input[name=bloodCenterId]')).toHaveValue('');
+  await page.getByLabel('Vínculo').fill('Hemope');
+  await page.getByRole('button', {name:/Hemope Recife/}).click();
+  await expect(page.locator('input[name=bloodCenterId]')).not.toHaveValue('');
+});
+

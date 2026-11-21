@@ -8,12 +8,14 @@ import {
   Users,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { roles, uuidPattern } from "./domain";
+import { roles } from "./domain";
 import {
   Confirm,
   Failure,
   Options,
   QueryState,
+  SearchSelect,
+  useCatalog,
   Table,
   Title,
   useAction,
@@ -162,6 +164,8 @@ function CatalogContent({ kind }: { kind: Kind }) {
   const [form, setForm] = useState(false);
   const [editing, setEditing] = useState<RecordRow>();
   const [role, setRole] = useState("HOSPITAL");
+  const [linkId, setLinkId] = useState("");
+  const links = useCatalog<RecordRow>(kind === "usuarios" && form && !editing && role !== "ADMIN" ? (role === "HOSPITAL" ? "/hospitals" : role === "HEMOCENTRO" ? "/blood-centers" : "/vehicles") : null);
   const [created, setCreated] = useState<RecordRow[]>([]);
   const [pending, setPending] = useState<{
     row: RecordRow;
@@ -299,32 +303,13 @@ function CatalogContent({ kind }: { kind: Kind }) {
                     <select
                       name="role"
                       value={role}
-                      onChange={(event) => setRole(event.target.value)}
+                      onChange={(event) => { setRole(event.target.value); setLinkId(""); }}
                     >
                       <Options items={roles} />
                     </select>
                   </label>
                   {role !== "ADMIN" && (
-                    <label>
-                      Identificador do vínculo{" "}
-                      {role === "HOSPITAL"
-                        ? "hospitalar"
-                        : role === "HEMOCENTRO"
-                          ? "com hemocentro"
-                          : "com veículo"}
-                      <input
-                        key={role}
-                        name={
-                          role === "HOSPITAL"
-                            ? "hospitalId"
-                            : role === "HEMOCENTRO"
-                              ? "bloodCenterId"
-                              : "vehicleId"
-                        }
-                        pattern={uuidPattern}
-                        required
-                      />
-                    </label>
+                    <SearchSelect key={role} label="Vínculo" name={role === "HOSPITAL" ? "hospitalId" : role === "HEMOCENTRO" ? "bloodCenterId" : "vehicleId"} required value={linkId} onChange={setLinkId} options={(links.data || []).map((item) => ({ id: item.id, label: String(item.name || item.code) + (item.city ? ` · ${item.city}` : "") }))} loading={!links.data && !links.error} error={links.error} retry={links.reload} />
                   )}
                 </>
               )}
@@ -457,6 +442,8 @@ export function Graph() {
   const nodes = useQuery<RecordRow[]>("/route-graph/nodes");
   const edges = useQuery<RecordRow[]>("/route-graph/edges");
   const [kind, setKind] = useState("crossing");
+  const [unitId, setUnitId] = useState("");
+  const units = useCatalog<RecordRow>(kind === "crossing" ? null : kind === "hospitalId" ? "/hospitals" : "/blood-centers");
   const action = useAction();
   const edgeAction = useAction();
   function addNode(event: FormEvent<HTMLFormElement>) {
@@ -493,7 +480,7 @@ export function Graph() {
             Tipo de ponto
             <select
               value={kind}
-              onChange={(event) => setKind(event.target.value)}
+              onChange={(event) => { setKind(event.target.value); setUnitId(""); }}
             >
               <option value="crossing">Cruzamento</option>
               <option value="bloodCenterId">Hemocentro</option>
@@ -526,10 +513,7 @@ export function Graph() {
               </label>
             </div>
           ) : (
-            <label>
-              Identificador da unidade
-              <input key={kind} name={kind} pattern={uuidPattern} required />
-            </label>
+            <SearchSelect key={kind} label="Unidade" name={kind} required value={unitId} onChange={setUnitId} options={(units.data || []).map((item) => ({ id: item.id, label: `${String(item.name)} · ${String(item.city)}` }))} loading={!units.data && !units.error} error={units.error} retry={units.reload} />
           )}
           <Failure error={action.error} />
           <button className="primary" disabled={action.busy}>
