@@ -22,6 +22,9 @@ export type Session = {
   unit: string;
   call: Client;
   orders: Order[];
+  orderError?: unknown;
+  ordersLoading: boolean;
+  reloadOrders: () => void;
   remember: (order: Order) => void;
   revision: number;
 };

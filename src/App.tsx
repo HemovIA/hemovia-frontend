@@ -1,3 +1,4 @@
+import { allPages } from "./queries";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -27,7 +28,7 @@ import {
 } from "react-router-dom";
 import { demo, demoOrders, demoUnit, demoUsers } from "./demo";
 import { http, ApiError } from "./http";
-import { roles, type Order, type Role, type User } from "./domain";
+import { roles, type Order, type Role, type User, type Transport } from "./domain";
 import { Failure, Logo, SessionContext, useAction, type Client } from "./ui";
 import {
   Dashboard,
@@ -156,6 +157,11 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [receipts, setReceipts] = useState<Order[]>([]);
   const [revision, setRevision] = useState(0);
+  const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
+  const [remoteIdentity, setRemoteIdentity] = useState<Identity | null>(null);
+  const [orderError, setOrderError] = useState<unknown>();
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderRetry, setOrderRetry] = useState(0);
   const [menu, setMenu] = useState(false);
   const [dark, setDark] = useState(
     () => localStorage.getItem("hemovia.theme") === "dark",
@@ -176,6 +182,7 @@ export default function App() {
       });
     const expired = () => {
       setIdentity(null);
+      setRemoteIdentity(null); setRemoteOrders([]); setOrderError(undefined);
       setReceipts([]);
     };
     window.addEventListener("hemovia:expired", expired);
@@ -204,6 +211,15 @@ export default function App() {
     },
     [identity],
   );
+  useEffect(() => {
+    let active = true;
+    if (!identity || identity.isDemo) return () => { active = false; };
+    setOrdersLoading(true); setOrderError(undefined); setRemoteOrders([]); setRemoteIdentity(null);
+    Promise.all([allPages<Order>(call, "/requests"), allPages<Transport>(call, "/transports")]).then(([requests, transports]) => {
+      if (active) { setRemoteOrders(requests.map((request) => ({ ...request, transport: transports.find((trip) => trip.requestId === request.id) }))); setRemoteIdentity(identity); }
+    }).catch((error) => { if (active) { setOrderError(error); setRemoteIdentity(identity); } }).finally(() => { if (active) setOrdersLoading(false); });
+    return () => { active = false; };
+  }, [identity, call, revision, orderRetry]);
   const remember = (order: Order) =>
     setReceipts((current) => {
       const previous = current.find((item) => item.id === order.id);
@@ -214,6 +230,7 @@ export default function App() {
     });
   function login(next: Identity) {
     setIdentity(next);
+    setRemoteIdentity(null); setRemoteOrders([]); setOrderError(undefined);
     setReceipts([]);
     navigate("/");
   }
@@ -221,6 +238,7 @@ export default function App() {
     void logout.run(async () => {
       if (!identity?.isDemo) await http("/auth/logout", "POST");
       setIdentity(null);
+      setRemoteIdentity(null); setRemoteOrders([]); setOrderError(undefined);
       setReceipts([]);
       navigate("/");
     });
@@ -235,12 +253,12 @@ export default function App() {
     );
   if (!identity) return <Login onLogin={login} />;
   const { user, isDemo } = identity;
-  const orders = isDemo ? demoOrders(user) : receipts;
+  const orders = isDemo ? demoOrders(user) : remoteIdentity === identity ? remoteOrders : [];
   const unit = isDemo ? demoUnit[user.role] : roles[user.role];
   const analytics = ["ADMIN", "HEMOCENTRO"].includes(user.role);
   return (
     <SessionContext.Provider
-      value={{ user, isDemo, call, orders, remember, revision, unit }}
+      value={{ user, isDemo, call, orders, remember, revision, unit, orderError: remoteIdentity === identity ? orderError : undefined, ordersLoading, reloadOrders: () => setOrderRetry((n) => n + 1) }}
     >
       <a className="skip-link" href="#main-content">
         Pular para o conteúdo

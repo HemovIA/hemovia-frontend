@@ -1,3 +1,4 @@
+import { adaptRequest, latestAllocation, type RequestDetail, type TransportDetail } from "./queries";
 import { DonorCpf } from "./donor";
 import { useState, type FormEvent } from "react";
 import {
@@ -163,7 +164,7 @@ export function Dashboard() {
       <p className="muted">
         {isDemo
           ? "Indicadores da operação demonstrativa."
-          : "Acompanhamento desta sessão. O estoque disponível representa o resumo fornecido pela API."}
+          : "O estoque disponível representa o resumo fornecido pela API."}
       </p>
       <div className="section-grid">
         <section>
@@ -244,10 +245,9 @@ function InventoryBars({ inventory }: { inventory: Inventory }) {
 }
 
 export function Orders() {
-  const { orders, user, isDemo } = useSession();
+  const { orders, user, orderError, ordersLoading, reloadOrders } = useSession();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const navigate = useNavigate();
   const filtered = orders.filter(
     (order) =>
       (!status || order.status === status) &&
@@ -267,13 +267,8 @@ export function Orders() {
           )
         }
       />
-      {!isDemo && (
-        <p className="info">
-          A API atual oferece criação, alocação e cancelamento. Os registros
-          abaixo são os acompanhados nesta sessão. Para operar uma requisição
-          recebida por outro canal, informe seu identificador.
-        </p>
-      )}
+      {orderError && <div><Failure error={orderError} /><button onClick={reloadOrders}>Tentar novamente</button></div>}
+      {ordersLoading && <p role="status">Carregando requisições…</p>}
       <div className="toolbar card">
         <label className="search">
           <Search size={17} />
@@ -294,27 +289,7 @@ export function Orders() {
         </select>
       </div>
       <OrderTable orders={filtered} />
-      <form
-        className="card form-card lookup"
-        onSubmit={(event) => {
-          event.preventDefault();
-          navigate("/pedidos/" + values(event.currentTarget).id);
-        }}
-      >
-        <label>
-          Abrir operação por identificador
-          <input
-            name="id"
-            placeholder="UUID da requisição"
-            pattern={uuidPattern}
-            required
-          />
-        </label>
-        <button className="secondary">
-          Abrir requisição
-          <ArrowRight size={15} />
-        </button>
-      </form>
+
     </>
   );
 }
@@ -427,7 +402,11 @@ export function OrderForm() {
 export function OrderDetail() {
   const { id = "" } = useParams();
   const { orders, user, call, remember, isDemo } = useSession();
-  const order = orders.find((item) => item.id === id);
+  const detail = useQuery<RequestDetail>(!isDemo && id ? `/requests/${id}` : null);
+  const activeAllocation = detail.data && latestAllocation(detail.data);
+  const transportIdFromDetail = activeAllocation?.transportId;
+  const trip = useQuery<TransportDetail>(!isDemo && transportIdFromDetail ? `/transports/${transportIdFromDetail}` : null);
+  const order = isDemo ? orders.find((item) => item.id === id) : detail.data ? adaptRequest(detail.data, trip.data?.transport) : undefined;
   const vehicles = useQuery<Vehicle[]>(
     user.role === "HEMOCENTRO" ? "/vehicles" : null,
   );
@@ -435,8 +414,6 @@ export function OrderDetail() {
     "allocate" | "cancel" | "complete" | null
   >(null);
   const [vehicleId, setVehicleId] = useState("");
-  const [allocationId, setAllocationId] = useState("");
-  const [transportId, setTransportId] = useState("");
   const action = useAction();
   async function perform(operation: "allocate" | "cancel" | "complete") {
     await action.run(async () => {
@@ -450,8 +427,9 @@ export function OrderDetail() {
         const updated = await call<Order>(`/requests/${id}/cancel`, "POST");
         remember({ ...order, ...updated });
       } else {
+        if (!order?.transport?.id) throw new Error("Aguarde a consulta do transporte.");
         const transport = await call<Transport>(
-          `/transports/${order?.transport?.id || transportId}/complete`,
+          `/transports/${order.transport.id}/complete`,
           "POST",
         );
         remember({
@@ -468,8 +446,9 @@ export function OrderDetail() {
     event.preventDefault();
     const fields = values(event.currentTarget);
     void action.run(async () => {
+      if (!order?.allocation?.id) throw new Error("Aguarde a consulta da alocação.");
       const transport = await call<Transport>("/transports/start", "POST", {
-        allocationId: order?.allocation?.id || allocationId,
+        allocationId: order.allocation.id,
         vehicleId: fields.vehicleId,
       });
       remember({
@@ -499,7 +478,7 @@ export function OrderDetail() {
             {status && <Badge status={status} />}
           </div>
         </div>
-        {user.role === "HEMOCENTRO" && (!status || status === "PENDING") && (
+        {user.role === "HEMOCENTRO" && status === "PENDING" && (
           <button
             className="primary"
             onClick={() => {
@@ -512,13 +491,9 @@ export function OrderDetail() {
           </button>
         )}
       </div>
-      {!order && (
-        <p className="info">
-          Informe os identificadores necessários para operar. Os detalhes
-          históricos desta requisição dependem de uma consulta de leitura ainda
-          ausente na API.
-        </p>
-      )}
+      {!isDemo && !detail.data && <QueryState query={detail} />}
+      {transportIdFromDetail && !trip.data && !trip.error && <p role="status">Carregando transporte…</p>}
+      {trip.error && <div><Failure error={trip.error} /><button onClick={trip.reload}>Tentar novamente</button></div>}
       <div className="detail-grid">
         <section className="card span-2">
           <h2>Dados do atendimento</h2>
@@ -598,7 +573,7 @@ export function OrderDetail() {
             <p className="warning">Requisição cancelada.</p>
           )}
           {user.role === "HOSPITAL" &&
-            (!status || ["PENDING", "ALLOCATED"].includes(status)) && (
+            (!!status && ["PENDING", "ALLOCATED"].includes(status)) && (
               <button
                 className="danger-link"
                 onClick={() => {
@@ -620,50 +595,26 @@ export function OrderDetail() {
             </p>
           )}
         </aside>
-        {user.role === "HEMOCENTRO" && (!status || status === "ALLOCATED") && (
+        {user.role === "HEMOCENTRO" && status === "ALLOCATED" && (
           <form className="card form-card span-2" onSubmit={start}>
             <h2>Iniciar transporte</h2>
-            {!order?.allocation && (
-              <label>
-                Identificador da alocação
-                <input
-                  pattern={uuidPattern}
-                  required
-                  value={allocationId}
-                  onChange={(event) => setAllocationId(event.target.value)}
-                />
-              </label>
-            )}
             <SearchSelect label="Veículo" name="vehicleId" required value={vehicleId} onChange={setVehicleId} options={(vehicles.data || []).map((vehicle) => ({ id: vehicle.id, label: `${vehicle.code} · ${vehicle.capacity} bolsas` }))} loading={!vehicles.data && !vehicles.error} error={vehicles.error} retry={vehicles.reload} />
             <Failure error={action.error} />
             <button
               className="primary"
-              disabled={action.busy || !vehicles.data?.length}
+              disabled={action.busy || !vehicles.data?.length || !order?.allocation}
             >
               Iniciar transporte
               <Truck size={16} />
             </button>
           </form>
         )}
-        {user.role === "HOSPITAL" && (!status || status === "IN_TRANSIT") && (
+        {user.role === "HOSPITAL" && status === "IN_TRANSIT" && (
           <section className="card form-card span-2">
             <h2>Confirmar recebimento</h2>
-            {!order?.transport && (
-              <label>
-                Identificador do transporte
-                <input
-                  pattern={uuidPattern}
-                  value={transportId}
-                  onChange={(event) => setTransportId(event.target.value)}
-                />
-              </label>
-            )}
             <button
               className="primary"
-              disabled={
-                !order?.transport &&
-                !new RegExp("^" + uuidPattern + "$").test(transportId)
-              }
+              disabled={!order?.transport}
               onClick={() => {
                 action.clear();
                 setConfirm("complete");
@@ -1051,7 +1002,7 @@ export function RoutePlanner() {
 }
 
 export function Tracking() {
-  const { orders, isDemo } = useSession();
+  const { orders, orderError, ordersLoading, reloadOrders } = useSession();
   return (
     <>
       <Title
@@ -1080,11 +1031,8 @@ export function Tracking() {
             ],
           }))}
       />
-      <p className="info">
-        {isDemo
-          ? "A demonstração acompanha os transportes fictícios criados no fluxo de alocação."
-          : "Acompanhamento dos comprovantes desta sessão. Consultas históricas de transportes e telemetria aguardam endpoints de leitura na API."}
-      </p>
+      {ordersLoading && <p role="status">Carregando transportes…</p>}
+      {orderError && <div><Failure error={orderError} /><button onClick={reloadOrders}>Tentar novamente</button></div>}
     </>
   );
 }

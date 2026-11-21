@@ -158,21 +158,19 @@ export function Catalog() {
 
 function CatalogContent({ kind }: { kind: Kind }) {
   const config = catalogs[kind];
-  const { call, isDemo } = useSession();
-  const listable = kind !== "hospitais" || isDemo;
-  const query = useQuery<RecordRow[]>(listable ? config.path : null);
+  const { call } = useSession();
+  const query = useCatalog<RecordRow>(config.path);
   const [form, setForm] = useState(false);
   const [editing, setEditing] = useState<RecordRow>();
   const [role, setRole] = useState("HOSPITAL");
   const [linkId, setLinkId] = useState("");
   const links = useCatalog<RecordRow>(kind === "usuarios" && form && !editing && role !== "ADMIN" ? (role === "HOSPITAL" ? "/hospitals" : role === "HEMOCENTRO" ? "/blood-centers" : "/vehicles") : null);
-  const [created, setCreated] = useState<RecordRow[]>([]);
   const [pending, setPending] = useState<{
     row: RecordRow;
     action: "delete" | "deactivate";
   }>();
   const action = useAction();
-  const records = listable ? query.data : created;
+  const records = query.data;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -181,12 +179,11 @@ function CatalogContent({ kind }: { kind: Kind }) {
     for (const field of ["latitude", "longitude", "priority", "capacity"])
       if (fields[field]) body[field] = Number(fields[field]);
     void action.run(async () => {
-      const row = await call<RecordRow>(
+      await call<RecordRow>(
         config.path + (editing ? "/" + editing.id : ""),
         editing ? "PUT" : "POST",
         body,
       );
-      if (!listable) setCreated((previous) => [row, ...previous]);
       setForm(false);
       setEditing(undefined);
     });
@@ -330,12 +327,6 @@ function CatalogContent({ kind }: { kind: Kind }) {
             </button>
           </div>
         </form>
-      )}
-      {!listable && (
-        <p className="info">
-          A API permite cadastrar hospitais. Esta lista apresenta os registros
-          criados nesta sessão.
-        </p>
       )}
       {!records ? (
         <QueryState query={query} />
