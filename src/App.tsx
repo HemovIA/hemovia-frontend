@@ -216,7 +216,7 @@ export default function App() {
     if (!identity || identity.isDemo) return () => { active = false; };
     setOrdersLoading(true); setOrderError(undefined); setRemoteOrders([]); setRemoteIdentity(null);
     Promise.all([allPages<Order>(call, "/requests"), allPages<Transport>(call, "/transports")]).then(([requests, transports]) => {
-      if (active) { setRemoteOrders(requests.map((request) => ({ ...request, transport: transports.find((trip) => trip.requestId === request.id) }))); setRemoteIdentity(identity); }
+      if (active) { setRemoteOrders(requests.map((request) => ({ ...request, transport: transports.filter((trip) => trip.requestId === request.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] }))); setRemoteIdentity(identity); }
     }).catch((error) => { if (active) { setOrderError(error); setRemoteIdentity(identity); } }).finally(() => { if (active) setOrdersLoading(false); });
     return () => { active = false; };
   }, [identity, call, revision, orderRetry]);

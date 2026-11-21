@@ -1,0 +1,63 @@
+import { test, expect } from '@playwright/test';
+test.use({ launchOptions: { executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' }, viewport: { width: 1440, height: 1000 } });
+function syntheticCpf() {
+  const first = Array.from({length:9}, () => Math.floor(Math.random()*10));
+  if (first.every(x => x === first[0])) first[0] = (first[0]+1)%10;
+  for (let n=9; n<=10; n++) { const sum=first.reduce((v,d,i) => v+d*(n+1-i),0); const r=sum%11; first.push(r<2?0:11-r); }
+  return first.join('');
+}
+test('@spec:AC-108 fluxo integrado real cadastra e recupera doação', async ({page}) => {
+  const name = `Doador Teste ${Date.now()}`;
+  await page.goto('http://127.0.0.1:5180/');
+  await page.getByLabel('E-mail ou CPF').fill('qa-admin@example.org');
+  await page.getByLabel('Senha', {exact:true}).fill('SenhaTeste123!');
+  await page.getByRole('button',{name:/Entrar na plataforma/}).click();
+  await page.getByRole('link',{name:'Doações', exact:true}).click();
+  await page.getByRole('link',{name:'Registrar doação'}).click();
+  await page.getByLabel('Hemocentro').fill('Hemocentro Sintetico');
+  await page.getByRole('button',{name:/Hemocentro Sintetico/}).click();
+  await page.getByLabel('CPF do doador (opcional)').fill('111.444.777-35');
+  await page.getByRole('button',{name:'Buscar doador'}).click();
+  await expect(page.getByText(/Doador selecionado: Doador Sintetico Existente/)).toBeVisible();
+  await page.getByLabel('Centro de coleta').fill(name);
+  const expiry = new Date(Date.now()+35*86400000).toISOString().slice(0,10);
+  await page.getByLabel('Data de validade').fill(expiry);
+  await page.getByLabel('CPF do doador (opcional)').fill(syntheticCpf());
+  await page.getByRole('button',{name:'Buscar doador'}).click();
+  await page.getByRole('button',{name:'Cadastrar doador'}).click();
+  await page.getByLabel('Nome',{exact:true}).fill(name);
+  const donorResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/donors') && response.request().method() === 'POST');
+  await page.getByRole('button',{name:'Confirmar cadastro'}).click();
+  const donorResponse = await donorResponsePromise; expect(donorResponse.status()).toBe(201); const donor = await donorResponse.json();
+  await expect(page.getByText(`Doador selecionado: ${name}`,{exact:false})).toBeVisible();
+  await expect(page.getByLabel('Centro de coleta')).toHaveValue(name);
+  await expect(page.getByLabel('Data de validade')).toHaveValue(expiry);
+  const donationResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/donations') && response.request().method() === 'POST');
+  await page.getByRole('button',{name:'Salvar registro'}).click();
+  const donationResponse = await donationResponsePromise; expect(donationResponse.status()).toBe(201);
+  const payload = donationResponse.request().postDataJSON();
+  expect(payload.donorId).toBe(donor.id); expect(payload.bloodCenterId).toBe('10000000-0000-4000-8000-000000000002');
+  const donation = await donationResponse.json();
+  await expect(page.getByText(name,{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(name,{exact:true})).toBeVisible();
+  const savedResponse = await page.request.get(`http://127.0.0.1:5180/api/v1/donations/${donation.donationId}`);
+  expect(savedResponse.ok()).toBeTruthy(); const saved = await savedResponse.json();
+  expect(saved.donorId).toBe(donor.id); expect(saved.bloodCenterId).toBe(payload.bloodCenterId);
+});
+test('@spec:AC-105 hospital criado reaparece após recarga real', async ({page}) => {
+  const name=`Hospital Teste ${Date.now()}`;
+  await page.goto('http://127.0.0.1:5180/');
+  await page.getByLabel('E-mail ou CPF').fill('qa-admin@example.org');
+  await page.getByLabel('Senha',{exact:true}).fill('SenhaTeste123!');
+  await page.getByRole('button',{name:/Entrar na plataforma/}).click();
+  await page.getByRole('link',{name:'Cadastros',exact:true}).click();
+  await page.getByRole('link',{name:/Hospitais/}).click();
+  await page.getByRole('button',{name:'Novo cadastro'}).click();
+  await page.getByLabel('Nome',{exact:true}).fill(name); await page.getByLabel('Cidade').fill('Recife');
+  await page.getByLabel('Latitude').fill('-8.05'); await page.getByLabel('Longitude').fill('-34.9');
+  await page.getByLabel('Prioridade de atendimento').fill('3');
+  await page.getByRole('button',{name:'Salvar cadastro'}).click();
+  await expect(page.getByText(name,{exact:true})).toBeVisible();
+  await page.reload(); await expect(page.getByText(name,{exact:true})).toBeVisible();
+});

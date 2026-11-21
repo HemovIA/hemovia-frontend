@@ -13,7 +13,7 @@ export function latestAllocation(detail: RequestDetail) {
 export function adaptRequest(detail: RequestDetail, transport?: Transport): Order {
   const allocation = latestAllocation(detail);
   const route = allocation && adaptRoute(allocation.route);
-  return { ...detail.request, allocation: allocation && route ? { id: allocation.id, requestId: detail.request.id, status: allocation.status as Allocation["status"], bloodBagIds: allocation.bags.map((bag) => bag.id), route } : undefined, transport };
+  return { ...detail.request, allocation: allocation ? { id: allocation.id, requestId: detail.request.id, status: allocation.status as Allocation["status"], bloodBagIds: allocation.bags.map((bag) => bag.id), route } : undefined, transport };
 }
 export async function allPages<T>(call: Client, path: string): Promise<T[]> {
   const result: T[] = [];

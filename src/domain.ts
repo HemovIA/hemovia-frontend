@@ -61,7 +61,7 @@ export type Allocation = {
   requestId: string;
   status: Status;
   bloodBagIds: string[];
-  route: RouteInfo;
+  route?: RouteInfo;
 };
 export type Transport = {
   id: string;
@@ -91,6 +91,8 @@ export type Bag = Blood & {
 };
 export type Donation = {
   donationId: string;
+  donorId?: string;
+  bloodCenterId?: string;
   collectionCenter: string;
   collectionDate: string;
   bloodBags: Bag[];

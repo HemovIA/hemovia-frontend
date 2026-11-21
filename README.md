@@ -2073,3 +2073,10 @@ Tudo isso deverá ser apresentado em uma interface:
 > **Se o usuário precisa pensar sobre como a interface funciona, a interface está fazendo o usuário trabalhar mais do que deveria.**
 
 O HEMOVIA deverá utilizar UX/UI para reduzir essa carga cognitiva, mantendo a complexidade necessária **dentro do sistema** e apresentando ao usuário apenas a informação necessária para tomar a próxima decisão.
+
+### Testes dos formulários assistidos
+
+A suíte de navegador usa Playwright e o Microsoft Edge instalado. Para testes de demonstração, inicie Vite em `127.0.0.1:5179`. Os testes `qa-isolado.spec.ts` exigem um backend e banco exclusivos de teste, com Vite em `127.0.0.1:5180` e proxy definido por `HEMOVIA_API_PROXY_TARGET`. Os dados e credenciais desse arquivo são sintéticos; não aponte o teste para um banco de desenvolvimento ou produção. Execute `npx playwright test` e `npm run build`.
+
+Para executar o gate reproduzível, a partir do repositório backend use `powershell -ExecutionPolicy Bypass -File scripts/spec-java/test-formularios.ps1 -Verify`. O script cria dois bancos PostgreSQL temporários em `api/target`, sobe API e frontend próprios, fornece os dados sintéticos exigidos pelos testes, executa a verificação e encerra apenas os processos criados. São necessárias as portas locais 5179, 5180 e 18080 livres, PostgreSQL 17, JDK 22, Maven e Edge nos caminhos documentados pelo script.
+Para renovar também todas as features anteriores, acrescente `-All` ao comando do harness; a feature atual é verificada primeiro e a execução para na primeira falha.

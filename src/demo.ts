@@ -438,6 +438,8 @@ function execute(
         state.bags.find((b) => b.bloodBagId === data.bloodBagId),
         "Bolsa não encontrada.",
       );
+      if (data.donorId && bag.donorId && data.donorId !== bag.donorId) throw Error("O doador da bolsa não corresponde à doação.");
+      if (data.bloodCenterId && bag.bloodCenterId && data.bloodCenterId !== bag.bloodCenterId) throw Error("O hemocentro da bolsa não corresponde à doação.");
       if (
         state.donations.some((d) =>
           d.bloodBags.some((b) => b.bloodBagId === bag.bloodBagId),
@@ -453,7 +455,8 @@ function execute(
         collectionDate: String(data.collectionDate).slice(0, 10),
         expirationDate: String(data.expirationDate).slice(0, 10),
         status: "AVAILABLE",
-        bloodCenterId: String(data.bloodCenterId || center),
+        bloodCenterId: data.bloodCenterId ? String(data.bloodCenterId) : undefined,
+        donorId: data.donorId ? String(data.donorId) : undefined,
       };
       state.bags.unshift(bag);
     }
@@ -462,6 +465,8 @@ function execute(
       donationId: uid(),
       collectionDate: String(data.collectionDate),
       collectionCenter: String(data.collectionCenter),
+      donorId: data.donorId ? String(data.donorId) : undefined,
+      bloodCenterId: data.bloodCenterId ? String(data.bloodCenterId) : undefined,
       bloodBags: [bag],
     };
     state.donations.unshift(record);

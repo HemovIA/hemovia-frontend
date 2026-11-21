@@ -529,6 +529,10 @@ export function OrderDetail() {
               {order.allocation.bloodBagIds.length} bolsa(s) reservada(s)
             </p>
           )}
+          {detail.data && detail.data.allocations.length > 0 && <section aria-label="Histórico de alocações">
+            <h2 className="space-top">Histórico de alocações</h2>
+            <ul>{[...detail.data.allocations].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((item) => <li key={item.id}>Alocação {item.id} · {statuses[item.status as Status] || item.status} · {dateTime(item.createdAt)} · {item.bags.length} bolsa(s)</li>)}</ul>
+          </section>}
           <h2 className="space-top">Etapas do atendimento</h2>
           <div className="timeline">
             {(
