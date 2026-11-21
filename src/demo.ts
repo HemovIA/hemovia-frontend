@@ -1,5 +1,8 @@
+import { ApiError } from "./http";
 import {
   today,
+  validCpf,
+  type Donor,
   uid,
   type Allocation,
   type Bag,
@@ -66,6 +69,7 @@ export type Row = { id: string } & Record<
 >;
 type State = {
   orders: Order[];
+  donors?: Donor[];
   bags: Bag[];
   donations: Donation[];
   catalogs: Record<string, Row[]>;
@@ -73,6 +77,7 @@ type State = {
 function seed(): State {
   const now = new Date().toISOString();
   return {
+    donors: [{ id: fixed(20), name: "Doador Exemplo", cpf: "52998224725", email: null, phoneNumber: null }],
     orders: [
       {
         id: fixed(10),
@@ -254,6 +259,19 @@ function execute(
   const [path, query] = url.split("?"),
     parts = path.split("/"),
     now = new Date().toISOString();
+  if (path === "/donors") {
+    if (!["ADMIN", "HEMOCENTRO"].includes(user.role)) throw new ApiError("Acesso negado.", 403);
+    state.donors ??= [];
+    const cpf = String(method === "GET" ? new URLSearchParams(query).get("cpf") || "" : data.cpf || "");
+    if (!validCpf(cpf)) throw new ApiError("CPF inválido.", 400);
+    const digits = cpf.replace(/\D/g, "");
+    const found = state.donors.find((item) => item.cpf === digits);
+    if (method === "GET") { if (!found) throw new ApiError("Doador não encontrado.", 404); return found; }
+    if (found) throw new ApiError("CPF já cadastrado.", 409);
+    if (!String(data.name || "").trim()) throw new ApiError("Informe o nome.", 400);
+    const donor: Donor = { id: uid(), name: String(data.name).trim(), cpf: digits, email: data.email ? String(data.email) : null, phoneNumber: data.phoneNumber ? String(data.phoneNumber) : null };
+    state.donors.push(donor); return donor;
+  }
   if (path === "/statistics/inventory") return inventory(state.bags);
   if (path === "/statistics/demand") {
     const params = new URLSearchParams(query),

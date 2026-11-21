@@ -1,3 +1,4 @@
+import { DonorCpf } from "./donor";
 import { useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -26,6 +27,7 @@ import {
   uuidPattern,
   type Allocation,
   type Bag,
+  type BloodCenter,
   type Demand,
   type Donation,
   type Inventory,
@@ -45,6 +47,7 @@ import {
   Metric,
   Options,
   QueryState,
+  SearchSelect,
   Table,
   Title,
   useAction,
@@ -823,6 +826,13 @@ export function StockForm({ donation = false }: { donation?: boolean }) {
   const action = useAction();
   const navigate = useNavigate();
   const [existing, setExisting] = useState(false);
+  const centers = useQuery<BloodCenter[]>("/blood-centers");
+  const bags = useQuery<Bag[]>(donation && existing ? "/blood-bags" : null);
+  const [centerId, setCenterId] = useState(user.bloodCenterId || "");
+  const [bagId, setBagId] = useState("");
+  const [collectionCenter, setCollectionCenter] = useState("");
+  const [editedCenter, setEditedCenter] = useState(false);
+  const selectedCenter = centers.data?.find((center) => center.id === centerId);
   const back = donation ? "/doacoes" : "/estoque";
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -851,18 +861,19 @@ export function StockForm({ donation = false }: { donation?: boolean }) {
         title={donation ? "Registrar doação" : "Cadastrar bolsa"}
       />
       <form className="card form-card narrow-form" onSubmit={submit}>
+        <SearchSelect label="Hemocentro" name="bloodCenterId" value={centerId} onChange={setCenterId} options={(centers.data || []).map((center) => ({ id: center.id, label: `${center.name} · ${center.city}` }))} loading={!centers.data && !centers.error} error={centers.error} retry={centers.reload} />
         {donation && (
           <>
             <label>
               Centro de coleta
-              <input name="collectionCenter" required />
+              <input name="collectionCenter" required value={editedCenter ? collectionCenter : (selectedCenter?.name || "")} onChange={(event) => { setEditedCenter(true); setCollectionCenter(event.target.value); }} />
             </label>
             <label>
               Origem da bolsa
               <select
                 value={existing ? "existing" : "new"}
                 onChange={(event) =>
-                  setExisting(event.target.value === "existing")
+                  { setExisting(event.target.value === "existing"); setBagId(""); }
                 }
               >
                 <option value="new">Criar bolsa junto à doação</option>
@@ -872,10 +883,7 @@ export function StockForm({ donation = false }: { donation?: boolean }) {
           </>
         )}
         {existing ? (
-          <label>
-            Identificador da bolsa
-            <input name="bloodBagId" pattern={uuidPattern} required />
-          </label>
+          <SearchSelect label="Bolsa" name="bloodBagId" required value={bagId} onChange={setBagId} options={(bags.data || []).map((bag) => ({ id: bag.bloodBagId, label: `${short(bag.bloodBagId)} · ${bloodLabel(bag)} · ${components[bag.component]} · ${civil(bag.expirationDate)}` }))} loading={!bags.data && !bags.error} error={bags.error} retry={bags.reload} />
         ) : (
           <>
             <div className="field-grid">
@@ -911,18 +919,7 @@ export function StockForm({ donation = false }: { donation?: boolean }) {
             </label>
           )}
         </div>
-        <label>
-          Identificador do hemocentro
-          <input
-            name="bloodCenterId"
-            pattern={uuidPattern}
-            defaultValue={user.bloodCenterId}
-          />
-        </label>
-        <label>
-          Identificador do doador, quando conhecido
-          <input name="donorId" pattern={uuidPattern} />
-        </label>
+        <DonorCpf />
         {!donation && (
           <label>
             Volume em mL
@@ -1226,3 +1223,4 @@ export function Reports() {
     </>
   );
 }
+

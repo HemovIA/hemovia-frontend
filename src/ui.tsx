@@ -322,10 +322,11 @@ export function SearchSelect({ label, name, options, value, onChange, required =
   const input = useRef<HTMLInputElement>(null);
   const listId = useRef(`options-${Math.random().toString(36).slice(2)}`).current;
   useEffect(() => { if (selected) setText(selected.label); }, [value, selected?.label]);
-  useEffect(() => { input.current?.setCustomValidity(required && !value ? "Selecione uma opção da lista." : text && !value ? "Selecione uma opção ou limpe a pesquisa." : ""); }, [required, text, value]);
+  useEffect(() => { input.current?.setCustomValidity((required && !selected) || (text && !selected) || (value && !selected && !loading) ? "Selecione uma opção da lista ou limpe a pesquisa." : ""); }, [required, text, value, selected, loading]);
   const matches = options.filter((item) => item.label.toLocaleLowerCase("pt-BR").includes(text.toLocaleLowerCase("pt-BR")));
   function choose(option: SearchOption) { onChange(option.id); setText(option.label); setOpen(false); }
-  return <div className="search-select">
+  useEffect(() => { setActive((i) => Math.max(0, Math.min(i, matches.length - 1))); }, [matches.length]);
+  return <div className="search-select" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label>{label}<input ref={input} role="combobox" autoComplete="off" aria-expanded={open} aria-controls={listId}
       aria-autocomplete="list" aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
       value={text} required={required} onFocus={() => setOpen(true)}
@@ -340,7 +341,7 @@ export function SearchSelect({ label, name, options, value, onChange, required =
     {value && <button type="button" className="secondary" onClick={() => { onChange(""); setText(""); input.current?.focus(); }}>Limpar {label.toLowerCase()}</button>}
     {open && <div>
       {loading ? <p role="status">Carregando…</p> : error ? <div><Failure error={error} /><button type="button" onClick={retry}>Tentar novamente</button></div> : matches.length ?
-        <ul id={listId} role="listbox">{matches.map((item, index) => <li key={item.id} id={`${listId}-${index}`} role="option" aria-selected={item.id === value}><button type="button" onClick={() => choose(item)}>{item.label}</button></li>)}</ul> : <p role="status">Nenhum resultado encontrado.</p>}
+        <ul id={listId} role="listbox">{matches.map((item, index) => <li key={item.id} id={`${listId}-${index}`} role="option" aria-selected={item.id === value} className={index === active ? "active" : ""}><button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(item)}>{item.label}</button></li>)}</ul> : <p role="status">Nenhum resultado encontrado.</p>}
     </div>}
   </div>;
 }

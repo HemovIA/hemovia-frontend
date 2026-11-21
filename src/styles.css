@@ -1401,3 +1401,5 @@ input:disabled {
 .search-select li button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: .65rem; cursor: pointer; }
 .search-select li button:hover, .search-select li button:focus-visible { background: #f4e8eb; }
 .search-select input:focus-visible, .search-select button:focus-visible { outline: 3px solid #a72741; outline-offset: 2px; }
+
+.search-select li.active { background: #f4e8eb; }
