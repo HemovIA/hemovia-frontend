@@ -26,7 +26,7 @@ O preview serve o build. A integração em preview e produção requer encaminha
 
 Login por e-mail ou CPF, restauração e renovação de sessão, resumo operacional, cadastro e consulta de bolsas e doações, requisições, alocação, cancelamento, início e recebimento de transporte, prévia de rota, estatísticas, cadastros administrativos e rede logística. A interface inclui tema escuro, navegação responsiva e confirmação de ações críticas.
 
-O acompanhamento real de requisições e transportes usa os comprovantes obtidos durante a sessão. A API atual ainda precisa de consultas históricas para esses recursos. Hospitais oferecem criação, com seus comprovantes apresentados após o cadastro. Os formulários aceitam os UUIDs necessários para operar recursos recebidos por outros canais.
+Requisições, transportes e hospitais são recuperados pelas consultas persistidas da API, inclusive após recarregar a página. Os formulários oferecem seleção pesquisável de hemocentros, hospitais, bolsas, veículos e vínculos; os identificadores são enviados pela opção selecionada. A doação preenche o centro de coleta a partir do hemocentro e permite editar o local. O doador pode ser localizado por CPF e cadastrado na própria tela, preservando os dados já preenchidos, com nome e CPF obrigatórios e contatos opcionais.
 
 A estilização desta implementação usa CSS e variáveis de tema. A especificação visual original é preservada abaixo como referência de produto.
 
