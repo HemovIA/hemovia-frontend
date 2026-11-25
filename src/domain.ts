@@ -41,7 +41,7 @@ export type Blood = {
 export type User = {
   id: string;
   name: string;
-  role: Role;
+  role: Role | "DOADOR";
   hospitalId?: string;
   bloodCenterId?: string;
   vehicleId?: string;

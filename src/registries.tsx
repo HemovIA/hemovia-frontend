@@ -343,7 +343,7 @@ function CatalogContent({ kind }: { kind: Kind }) {
               String(row.name || row.code || "—"),
               String(
                 kind === "usuarios"
-                  ? roles[row.role as keyof typeof roles] +
+                  ? (row.role === "DOADOR" ? "Doador" : roles[row.role as keyof typeof roles] ?? "—") +
                       (row.active === false ? " · Inativo" : "")
                   : kind === "veiculos"
                     ? row.capacity

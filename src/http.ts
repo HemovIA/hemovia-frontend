@@ -82,7 +82,9 @@ export async function http<T>(
     if (
       !(error instanceof ApiError) ||
       error.status !== 401 ||
-      path === "/auth/login"
+      path === "/auth/login" ||
+      path === "/auth/register" ||
+      path === "/auth/register/confirm"
     )
       throw error;
     refreshing ??= send("/auth/refresh", "POST").finally(() => {

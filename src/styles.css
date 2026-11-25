@@ -1175,6 +1175,9 @@ input:disabled {
 .login-card > .muted {
   margin-bottom: 27px;
 }
+.login-follow-up {
+  margin-top: 12px;
+}
 .divider {
   display: flex;
   align-items: center;
