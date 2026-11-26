@@ -12,7 +12,14 @@ async function mockRegistration(page: Page) {
   const operationalRequests: string[] = [];
   let registered = false;
   let signedIn = false;
-  const donor = { id: "conta-doadora", name: "Pessoa Doadora", role: "DOADOR" };
+  const donor = {
+    id: "conta-doadora",
+    name: "Pessoa Doadora",
+    role: "DOADOR",
+    email,
+    cpf: "52998224725",
+    phoneNumber: null,
+  };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/v1", "");
@@ -89,10 +96,41 @@ test("@spec:AC-130 confirma o cadastro, corrige dados inválidos e entra sem abr
   await page.getByLabel("E-mail ou CPF").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Entrar na plataforma" }).click();
-  await expect(page.getByRole("heading", { name: "Conta de doador" })).toBeVisible();
+  await expect(page).toHaveURL(app + "/area-do-doador");
+  const account = page.getByRole("region", { name: "Dados da conta" });
+  await expect(account.getByText("Pessoa Doadora")).toBeVisible();
+  await expect(account.getByText(email, { exact: true })).toBeVisible();
+  await expect(account.getByText("529.982.247-25", { exact: true })).toBeVisible();
+  await expect(account.getByText("Não informado", { exact: true })).toBeVisible();
+
   await page.goto(app + "/estoque");
-  await expect(page.getByRole("heading", { name: "Conta de doador" })).toBeVisible();
+  await expect(page).toHaveURL(app + "/area-do-doador");
+  await expect(account.getByText(email, { exact: true })).toBeVisible();
   expect(operationalRequests).toEqual([]);
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page.getByRole("button", { name: "Entrar na plataforma" })).toBeVisible();
+});
+
+test("área do doador mostra o telefone da sessão restaurada em tela pequena", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.route("**/api/v1/auth/me", (route) =>
+    route.fulfill({
+      json: {
+        id: "conta-doador-existente",
+        name: "Doador Existente",
+        role: "DOADOR",
+        email: "doador.existente@example.org",
+        cpf: "11144477735",
+        phoneNumber: "81991234567",
+      },
+    }),
+  );
+  await page.goto(app + "/area-do-doador");
+  await expect(page.getByRole("heading", { name: "Área do doador" })).toBeVisible();
+  const account = page.getByRole("region", { name: "Dados da conta" });
+  await expect(account.getByText("Doador Existente")).toBeVisible();
+  await expect(account.getByText("doador.existente@example.org", { exact: true })).toBeVisible();
+  await expect(account.getByText("111.444.777-35", { exact: true })).toBeVisible();
+  await expect(account.getByText("(81) 99123-4567", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 });

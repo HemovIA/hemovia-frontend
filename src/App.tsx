@@ -43,6 +43,7 @@ import {
 } from "./pages";
 import { Catalog, Graph, Registries } from "./registries";
 import { Registration, registrationToken } from "./registration";
+import { DonorAccount, donorAccountPath } from "./donor-account";
 
 type Identity = { user: User; isDemo: boolean };
 
@@ -281,7 +282,7 @@ export default function App() {
     setIdentity(next);
     setRemoteIdentity(null); setRemoteOrders([]); setOrderError(undefined);
     setReceipts([]);
-    navigate("/");
+    navigate(next.user.role === "DOADOR" ? donorAccountPath : "/");
   }
   function leave() {
     void logout.run(async () => {
@@ -302,18 +303,20 @@ export default function App() {
     );
   if (!identity || registrationToken(location.hash) !== null) return <Login onLogin={login} />;
   const { user, isDemo } = identity;
-  if (user.role === "DOADOR")
-    return (
-      <AccessLayout>
-        <h2>Conta de doador</h2>
-        <p className="muted">Você entrou na sua conta. A área de doador estará disponível em breve.</p>
-        <Failure error={logout.error} />
-        <button type="button" className="secondary full" disabled={logout.busy} onClick={leave}>
-          <LogOut size={17} />
-          {logout.busy ? "Saindo…" : "Sair"}
-        </button>
-      </AccessLayout>
+  if (user.role === "DOADOR") {
+    return location.pathname === donorAccountPath ? (
+      <DonorAccount
+        user={user}
+        dark={dark}
+        onToggleTheme={() => setDark((value) => !value)}
+        onLogout={leave}
+        logoutBusy={logout.busy}
+        logoutError={logout.error}
+      />
+    ) : (
+      <Navigate to={donorAccountPath} replace />
     );
+  }
   const orders = isDemo ? demoOrders(user) : remoteIdentity === identity ? remoteOrders : [];
   const unit = isDemo ? demoUnit[user.role] : roles[user.role];
   const analytics = ["ADMIN", "HEMOCENTRO"].includes(user.role);
