@@ -1,0 +1,51 @@
+import { test, expect } from '@playwright/test';
+test.use({ launchOptions: { executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' } });
+
+test('@spec:AC-109 @spec:AC-110 @spec:AC-111 @spec:AC-112 @spec:AC-113 usuário mascara, edita e envia somente dígitos', async ({page}) => {
+  await page.goto('http://127.0.0.1:5179/');
+  await page.getByRole('button',{name:'Administrador',exact:true}).click();
+  await page.getByRole('link',{name:'Cadastros',exact:true}).click();
+  await page.getByRole('link',{name:/Usuários/}).click();
+  await page.getByRole('button',{name:'Novo cadastro'}).click();
+  const cpf=page.getByLabel('CPF',{exact:true}), phone=page.getByLabel('Telefone',{exact:true});
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => navigator.clipboard.writeText('529.982.247-25')); await cpf.focus(); await cpf.press('Control+V'); await expect(cpf).toHaveValue('529.982.247-25');
+  await cpf.fill(''); await cpf.pressSequentially('52998224725'); await expect(cpf).toHaveValue('529.982.247-25');
+  await cpf.evaluate((el:HTMLInputElement)=>el.setSelectionRange(4,7)); await cpf.pressSequentially('982'); await expect(cpf).toHaveValue('529.982.247-25');
+  await cpf.evaluate((el:HTMLInputElement)=>el.setSelectionRange(3,3)); await cpf.press('Delete'); await expect(cpf).toHaveValue('529.822.472-5');
+  await cpf.fill('52998224725');
+  await cpf.fill('52998224725999'); await expect(cpf).toHaveValue('529.982.247-25');
+  await phone.fill('(81) 3333-4444'); await expect(phone).toHaveValue('(81) 3333-4444');
+  await phone.fill('81999999999abc123'); await expect(phone).toHaveValue('(81) 99999-9999');
+  await phone.fill('8199'); await page.getByLabel('Nome',{exact:true}).fill('Pessoa Máscara'); await page.getByLabel('E-mail',{exact:true}).fill('mascara@example.org');
+  await page.getByLabel('Senha inicial').fill('senha123'); await page.locator('select[name=role]').selectOption('ADMIN');
+  await page.getByRole('button',{name:'Salvar cadastro'}).click(); await expect(phone).toBeFocused();
+  await phone.fill('81999999999');
+  await page.screenshot({path:'test-results/mascaras-cadastros.png',fullPage:true});
+  await page.getByRole('button',{name:'Salvar cadastro'}).click();
+  await expect(page.getByText('Pessoa Máscara')).toBeVisible();
+  const saved=await page.evaluate(() => JSON.parse(localStorage.getItem('hemovia.demo.v1')!).catalogs['/users'].find((x:{name:string})=>x.name==='Pessoa Máscara'));
+  expect(saved.cpf).toBe('52998224725'); expect(saved.phoneNumber).toBe('81999999999');
+  await page.getByRole('row').filter({hasText:'Pessoa Máscara'}).getByRole('button',{name:'Editar'}).click();
+  await expect(phone).toHaveValue('(81) 99999-9999');
+  await phone.fill(''); await page.getByRole('button',{name:'Salvar cadastro'}).click();
+  await expect(page.getByText('Pessoa Máscara')).toBeVisible();
+});
+
+test('@spec:AC-109 @spec:AC-110 @spec:AC-111 @spec:AC-112 @spec:AC-113 doador mantém busca e invalida seleção ao corrigir CPF', async ({page}) => {
+  await page.goto('http://127.0.0.1:5179/'); await page.getByRole('button',{name:'Hemocentro',exact:true}).click();
+  await page.getByRole('link',{name:'Doações',exact:true}).click(); await page.getByRole('link',{name:'Registrar doação'}).click();
+  const cpf=page.getByLabel('CPF do doador (opcional)'); await cpf.fill('111.444.777-35');
+  await page.getByRole('button',{name:'Buscar doador'}).click(); await page.getByRole('button',{name:'Cadastrar doador'}).click();
+  await page.getByLabel('Nome',{exact:true}).fill('Pessoa Teste'); const phone=page.getByLabel('Telefone (opcional)');
+  await phone.fill('(81) 3333-4444'); await expect(phone).toHaveValue('(81) 3333-4444');
+  await phone.fill('81123'); await page.getByRole('button',{name:'Confirmar cadastro'}).click();
+  await expect(page.getByRole('alert')).toContainText('telefone completo');
+  await phone.fill('81999999999'); await page.getByRole('button',{name:'Confirmar cadastro'}).click();
+  await expect(page.locator('input[name=donorId]')).not.toHaveValue('');
+  const saved=await page.evaluate(() => JSON.parse(localStorage.getItem('hemovia.demo.v1')!).donors.find((x:{name:string})=>x.name==='Pessoa Teste'));
+  expect(saved.cpf).toBe('11144477735'); expect(saved.phoneNumber).toBe('81999999999');
+  await cpf.focus(); await cpf.evaluate((el:HTMLInputElement)=>el.setSelectionRange(4,4)); await cpf.press('Backspace');
+  await expect(cpf).toHaveValue('114.447.773-5'); await expect(page.locator('input[name=donorId]')).toHaveValue('');
+  await cpf.fill(''); await expect(cpf).toHaveValue('');
+});

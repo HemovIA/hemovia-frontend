@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { roles } from "./domain";
+import { digits, formatPhone, MaskedInput } from "./masks";
 import {
   Confirm,
   Failure,
@@ -163,6 +164,8 @@ function CatalogContent({ kind }: { kind: Kind }) {
   const [form, setForm] = useState(false);
   const [editing, setEditing] = useState<RecordRow>();
   const [role, setRole] = useState("HOSPITAL");
+  const [cpf, setCpf] = useState("");
+  const [phone, setPhone] = useState("");
   const [linkId, setLinkId] = useState("");
   const links = useCatalog<RecordRow>(kind === "usuarios" && form && !editing && role !== "ADMIN" ? (role === "HOSPITAL" ? "/hospitals" : role === "HEMOCENTRO" ? "/blood-centers" : "/vehicles") : null);
   const [pending, setPending] = useState<{
@@ -176,6 +179,7 @@ function CatalogContent({ kind }: { kind: Kind }) {
     event.preventDefault();
     const fields = values(event.currentTarget);
     const body: Record<string, unknown> = { ...fields };
+    if (kind === "usuarios") { if (fields.cpf) body.cpf = digits(fields.cpf); if (fields.phoneNumber) body.phoneNumber = digits(fields.phoneNumber); }
     for (const field of ["latitude", "longitude", "priority", "capacity"])
       if (fields[field]) body[field] = Number(fields[field]);
     void action.run(async () => {
@@ -204,6 +208,7 @@ function CatalogContent({ kind }: { kind: Kind }) {
             className="primary"
             onClick={() => {
               setEditing(undefined);
+              setCpf(""); setPhone("");
               setForm(true);
               action.clear();
             }}
@@ -266,24 +271,13 @@ function CatalogContent({ kind }: { kind: Kind }) {
               </label>
               <label>
                 Telefone
-                <input
-                  name="phoneNumber"
-                  type="tel"
-                  defaultValue={String(editing?.phoneNumber || "")}
-                />
+                <MaskedInput kind="phone" name="phoneNumber" type="tel" value={phone} onValueChange={setPhone} pattern="\(\d{2}\) \d{4,5}-\d{4}" title="Informe DDD e telefone completo." />
               </label>
               {!editing && (
                 <>
                   <label>
                     CPF
-                    <input
-                      name="cpf"
-                      pattern="[0-9]{11}"
-                      maxLength={11}
-                      inputMode="numeric"
-                      required
-                      placeholder="11 dígitos"
-                    />
+                    <MaskedInput kind="cpf" name="cpf" value={cpf} onValueChange={setCpf} pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" inputMode="numeric" required placeholder="000.000.000-00" />
                   </label>
                   <label>
                     Senha inicial
@@ -349,7 +343,7 @@ function CatalogContent({ kind }: { kind: Kind }) {
               String(row.name || row.code || "—"),
               String(
                 kind === "usuarios"
-                  ? roles[row.role as keyof typeof roles] +
+                  ? (row.role === "DOADOR" ? "Doador" : roles[row.role as keyof typeof roles] ?? "—") +
                       (row.active === false ? " · Inativo" : "")
                   : kind === "veiculos"
                     ? row.capacity
@@ -361,6 +355,7 @@ function CatalogContent({ kind }: { kind: Kind }) {
                     className="secondary"
                     onClick={() => {
                       setEditing(row);
+                      setPhone(formatPhone(String(row.phoneNumber || "")));
                       setForm(true);
                       action.clear();
                     }}

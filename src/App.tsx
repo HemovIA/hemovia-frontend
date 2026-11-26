@@ -1,5 +1,5 @@
 import { allPages } from "./queries";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   ArrowRight,
@@ -42,22 +42,12 @@ import {
   Tracking,
 } from "./pages";
 import { Catalog, Graph, Registries } from "./registries";
+import { Registration, registrationToken } from "./registration";
+import { DonorAccount, donorAccountPath } from "./donor-account";
 
 type Identity = { user: User; isDemo: boolean };
 
-function Login({ onLogin }: { onLogin: (identity: Identity) => void }) {
-  const action = useAction();
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void action.run(async () => {
-      const user = await http<User>("/auth/login", "POST", {
-        identifier: data.get("identifier"),
-        password: data.get("password"),
-      });
-      onLogin({ user, isDemo: false });
-    });
-  }
+function AccessLayout({ children }: { children: ReactNode }) {
   return (
     <main className="login-page">
       <section className="login-brand">
@@ -80,9 +70,58 @@ function Login({ onLogin }: { onLogin: (identity: Identity) => void }) {
         </div>
       </section>
       <section className="login-panel">
-        <div className="login-card">
+        <div className="login-card">{children}</div>
+      </section>
+    </main>
+  );
+}
+
+function Login({ onLogin }: { onLogin: (identity: Identity) => void }) {
+  const action = useAction();
+  const [creating, setCreating] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const { hash } = useLocation();
+  const navigate = useNavigate();
+  const token = registrationToken(hash);
+
+  function closeRegistration(completed = false) {
+    setCreating(false);
+    setRegistered(completed);
+    if (token !== null) {
+      navigate({ hash: "" }, { replace: true });
+    }
+  }
+
+  function requestAnotherLink() {
+    closeRegistration();
+    setCreating(true);
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void action.run(async () => {
+      const user = await http<User>("/auth/login", "POST", {
+        identifier: data.get("identifier"),
+        password: data.get("password"),
+      });
+      onLogin({ user, isDemo: false });
+    });
+  }
+  return (
+    <AccessLayout>
+      {creating || token !== null ? (
+        <Registration
+          key={token ?? "start"}
+          token={token}
+          onBack={() => closeRegistration()}
+          onRestart={requestAnotherLink}
+          onComplete={() => closeRegistration(true)}
+        />
+      ) : (
+        <>
           <h2>Bem-vindo de volta</h2>
-          <p className="muted">Acesse sua conta para acompanhar a operação.</p>
+          <p className="muted">Acesse sua conta na Hemovia.</p>
+          {registered && <p role="status">Conta criada. Entre com seu e-mail ou CPF e a senha escolhida.</p>}
           <form onSubmit={submit}>
             <label>
               E-mail ou CPF
@@ -108,6 +147,17 @@ function Login({ onLogin }: { onLogin: (identity: Identity) => void }) {
               <ArrowRight size={17} />
             </button>
           </form>
+          <button
+            type="button"
+            className="secondary full login-follow-up"
+            onClick={() => {
+              setCreating(true);
+              setRegistered(false);
+              action.clear();
+            }}
+          >
+            Criar conta
+          </button>
           <div className="divider">EXPLORE A PLATAFORMA</div>
           <p className="muted">
             Demonstração com dados fictícios, salva neste navegador.
@@ -125,9 +175,9 @@ function Login({ onLogin }: { onLogin: (identity: Identity) => void }) {
               </button>
             ))}
           </div>
-        </div>
-      </section>
-    </main>
+        </>
+      )}
+    </AccessLayout>
   );
 }
 
@@ -213,7 +263,7 @@ export default function App() {
   );
   useEffect(() => {
     let active = true;
-    if (!identity || identity.isDemo) return () => { active = false; };
+    if (!identity || identity.isDemo || identity.user.role === "DOADOR") return () => { active = false; };
     setOrdersLoading(true); setOrderError(undefined); setRemoteOrders([]); setRemoteIdentity(null);
     Promise.all([allPages<Order>(call, "/requests"), allPages<Transport>(call, "/transports")]).then(([requests, transports]) => {
       if (active) { setRemoteOrders(requests.map((request) => ({ ...request, transport: transports.filter((trip) => trip.requestId === request.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] }))); setRemoteIdentity(identity); }
@@ -232,7 +282,7 @@ export default function App() {
     setIdentity(next);
     setRemoteIdentity(null); setRemoteOrders([]); setOrderError(undefined);
     setReceipts([]);
-    navigate("/");
+    navigate(next.user.role === "DOADOR" ? donorAccountPath : "/");
   }
   function leave() {
     void logout.run(async () => {
@@ -251,8 +301,22 @@ export default function App() {
         <p>Preparando sua área de trabalho…</p>
       </main>
     );
-  if (!identity) return <Login onLogin={login} />;
+  if (!identity || registrationToken(location.hash) !== null) return <Login onLogin={login} />;
   const { user, isDemo } = identity;
+  if (user.role === "DOADOR") {
+    return location.pathname === donorAccountPath ? (
+      <DonorAccount
+        user={user}
+        dark={dark}
+        onToggleTheme={() => setDark((value) => !value)}
+        onLogout={leave}
+        logoutBusy={logout.busy}
+        logoutError={logout.error}
+      />
+    ) : (
+      <Navigate to={donorAccountPath} replace />
+    );
+  }
   const orders = isDemo ? demoOrders(user) : remoteIdentity === identity ? remoteOrders : [];
   const unit = isDemo ? demoUnit[user.role] : roles[user.role];
   const analytics = ["ADMIN", "HEMOCENTRO"].includes(user.role);

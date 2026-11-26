@@ -2080,3 +2080,5 @@ A suíte de navegador usa Playwright e o Microsoft Edge instalado. Para testes d
 
 Para executar o gate reproduzível, a partir do repositório backend use `powershell -ExecutionPolicy Bypass -File scripts/spec-java/test-formularios.ps1 -Verify`. O script cria dois bancos PostgreSQL temporários em `api/target`, sobe API e frontend próprios, fornece os dados sintéticos exigidos pelos testes, executa a verificação e encerra apenas os processos criados. São necessárias as portas locais 5179, 5180 e 18080 livres, PostgreSQL 17, JDK 22, Maven e Edge nos caminhos documentados pelo script.
 Para renovar também todas as features anteriores, acrescente `-All` ao comando do harness; a feature atual é verificada primeiro e a execução para na primeira falha.
+
+Os cadastros exibem CPF como `000.000.000-00` e telefone com DDD como `(81) 3333-4444` ou `(81) 99999-9999`. A colagem com ou sem pontuação é aceita; telefone é opcional, mas deve estar completo quando informado. Os dados são enviados à API somente com dígitos.
