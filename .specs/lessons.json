@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 4,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "weak_test::valide o pacote em um checkout da branch publicada e confira os arquivos e endpoints consumidos pela vm",
+      "text": "Valide o pacote em um checkout da branch publicada e confira os arquivos e endpoints consumidos pela VM.",
+      "signal": "weak_test",
+      "scope": "",
+      "status": "candidate",
+      "features": [
+        "cicd-aws-demo"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CICD-03"
+      ],
+      "created": "2026-11-26T19:28:58Z",
+      "last_seen": "2026-11-26T19:28:58Z"
+    },
+    {
+      "id": "L-002",
+      "key": "weak_test::teste redirecionamentos e respostas vazias ao verificar a pagina antes de aprovar um deploy",
+      "text": "Teste redirecionamentos e respostas vazias ao verificar a página antes de aprovar um deploy.",
+      "signal": "weak_test",
+      "scope": "",
+      "status": "candidate",
+      "features": [
+        "cicd-aws-demo"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CICD-04"
+      ],
+      "created": "2026-11-26T19:28:58Z",
+      "last_seen": "2026-11-26T19:28:58Z"
+    },
+    {
+      "id": "L-003",
+      "key": "ac_gap::reaplique a versao registrada se a persistencia do estado falhar depois de ativar a candidata",
+      "text": "Reaplique a versão registrada se a persistência do estado falhar depois de ativar a candidata.",
+      "signal": "ac_gap",
+      "scope": "",
+      "status": "candidate",
+      "features": [
+        "cicd-aws-demo"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CICD-05"
+      ],
+      "created": "2026-11-26T19:28:59Z",
+      "last_seen": "2026-11-26T19:28:59Z"
+    }
+  ]
+}
