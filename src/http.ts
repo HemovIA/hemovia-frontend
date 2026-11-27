@@ -11,17 +11,21 @@ export class ApiError extends Error {
     super(message);
   }
 }
+type RequestOptions = { signal?: AbortSignal; timeoutMs?: number };
+
 async function send<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  { signal, timeoutMs = 15000 }: RequestOptions = {},
 ): Promise<T> {
+  signal?.throwIfAborted();
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (method !== "GET" && path !== "/auth/login") {
     let token = csrfCookie();
     if (!token) {
-      await send("/auth/csrf");
+      await send("/auth/csrf", "GET", undefined, { signal });
       token = csrfCookie();
     }
     if (!token)
@@ -31,37 +35,44 @@ async function send<T>(
       );
     headers["X-XSRF-TOKEN"] = token;
   }
-  let response: Response;
+  signal?.throwIfAborted();
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort);
+  const timer = window.setTimeout(abort, timeoutMs);
   try {
-    response = await fetch(base + path, {
+    const response = await fetch(base + path, {
       method,
       headers,
       credentials: "include",
-      signal: AbortSignal.timeout(15000),
+      signal: controller.signal,
       body: body === undefined ? undefined : JSON.stringify(body),
+    }).catch(() => {
+      throw new ApiError(
+        method === "GET"
+          ? "Não foi possível conectar à API."
+          : "Conexão interrompida. Verifique o resultado antes de repetir a operação.",
+        0,
+      );
     });
-  } catch {
-    throw new ApiError(
-      method === "GET"
-        ? "Não foi possível conectar à API."
-        : "Conexão interrompida. Verifique o resultado antes de repetir a operação.",
-      0,
-    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(
+        error.message ||
+          (response.status === 401
+            ? "Credenciais ou sessão inválidas."
+            : "Falha na API (HTTP " + response.status + ")."),
+        response.status,
+        error.fieldErrors,
+      );
+    }
+    if (response.status === 204) return undefined as T;
+    const text = await response.text();
+    return text ? (JSON.parse(text) as T) : (undefined as T);
+  } finally {
+    window.clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
   }
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new ApiError(
-      error.message ||
-        (response.status === 401
-          ? "Credenciais ou sessão inválidas."
-          : "Falha na API (HTTP " + response.status + ")."),
-      response.status,
-      error.fieldErrors,
-    );
-  }
-  if (response.status === 204) return undefined as T;
-  const text = await response.text();
-  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 const csrfCookie = () =>
   decodeURIComponent(
@@ -75,11 +86,13 @@ export async function http<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  options?: RequestOptions,
 ): Promise<T> {
   try {
-    return await send<T>(path, method, body);
+    return await send<T>(path, method, body, options);
   } catch (error) {
     if (
+      options?.signal?.aborted ||
       !(error instanceof ApiError) ||
       error.status !== 401 ||
       path === "/auth/login" ||
@@ -92,9 +105,9 @@ export async function http<T>(
     });
     try {
       await refreshing;
-      return await send<T>(path, method, body);
+      return await send<T>(path, method, body, options);
     } catch (retry) {
-      if (retry instanceof ApiError && retry.status === 401)
+      if (!options?.signal?.aborted && retry instanceof ApiError && retry.status === 401)
         window.dispatchEvent(new Event("hemovia:expired"));
       throw retry;
     }

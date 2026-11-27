@@ -1,5 +1,6 @@
 import { LogOut, Moon, Sun } from "lucide-react";
 import type { User } from "./domain";
+import { DonorChat } from "./donor-chat";
 import { formatCpf, formatPhone } from "./masks";
 import { Failure, Logo } from "./ui";
 
@@ -47,6 +48,7 @@ export function DonorAccount({ user, dark, onToggleTheme, onLogout, logoutBusy, 
       <main className="donor-content" id="main-content" tabIndex={-1}>
         <h1>Área do doador</h1>
         <Failure error={logoutError} />
+        <DonorChat key={user.id} />
         <section className="card donor-profile" aria-labelledby="donor-profile-heading">
           <h2 id="donor-profile-heading">Dados da conta</h2>
           <dl className="donor-details">
